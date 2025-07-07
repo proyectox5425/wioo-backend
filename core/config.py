@@ -1,29 +1,23 @@
-from dotenv import load_dotenv
 import os
+from dotenv import load_dotenv
+from pydantic import BaseSettings, Field
 
-load_dotenv()
+# Verificamos que el archivo .env exista antes de cargarlo
+if os.path.exists(".env"):
+    load_dotenv()
+else:
+    print("⚠️ Archivo .env no encontrado. Usando valores por defecto.")
 
-class Settings:
-    # 🔐 Seguridad
-    JWT_SECRET: str = os.getenv("JWT_SECRET", "default_jwt_secret")
-    BANCO_API_URL: str = os.getenv("BANCO_API_URL", "")
-    BANCO_API_KEY: str = os.getenv("BANCO_API_KEY", "")
+class Settings(BaseSettings):
+    DB_URL: str = Field(..., env="DB_URL")
+    JWT_SECRET: str = Field(..., env="JWT_SECRET")
+    HOST: str = Field("0.0.0.0", env="HOST")
+    PORT: int = Field(8000, env="PORT")
+    DEBUG: bool = Field(True, env="DEBUG")
+    ENVIRONMENT: str = Field("dev", env="ENVIRONMENT")  # Puedes usar esto para condiciones en producción
 
-    # 🌐 Configuración del servidor
-    HOST: str = os.getenv("HOST", "0.0.0.0")
-    PORT: int = int(os.getenv("PORT", 8000))
-    DEBUG: bool = os.getenv("DEBUG", "False").lower() == "true"
-
-    # 🛢️ Base de datos
-    DB_PATH: str = os.getenv("DB_PATH", "accesos.db")
-
-    # 🚌 Identificador único del autobús
-    BUS_ID: str = os.getenv("BUS_ID", "UNDEFINED")
-
-    # 💳 Validación de comprobantes bancarios
-    VALIDAR_COMPROBANTES: bool = os.getenv("VALIDAR_COMPROBANTES", "False").lower() == "true"
-
-    # ⏳ Configuración de expiración de tickets
-    TICKET_EXPIRACION_MINUTOS: int = int(os.getenv("TICKET_EXPIRACION_MINUTOS", "10"))
+    # Variables adicionales (opcional):
+    QR_EXPIRATION_MINUTES: int = Field(10, env="QR_EXPIRATION_MINUTES")
+    TOKEN_LENGTH: int = Field(6, env="TOKEN_LENGTH")
 
 settings = Settings()
