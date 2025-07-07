@@ -1,0 +1,65 @@
+import sqlite3
+from datetime import datetime, timedelta
+
+# 🛠️ Conexión a la base de datos
+conn = sqlite3.connect("accesos.db", check_same_thread=False)
+cursor = conn.cursor()
+
+# 🧱 Creación de tablas si no existen
+cursor.execute("""
+    CREATE TABLE IF NOT EXISTS dispositivos (
+        ip TEXT PRIMARY KEY
+    )
+""")
+
+cursor.execute("""
+    CREATE TABLE IF NOT EXISTS tickets (
+        ip TEXT PRIMARY KEY,
+        metodo_pago TEXT,
+        hora_activacion TEXT,
+        expiracion TEXT
+    )
+""")
+
+cursor.execute("""
+    CREATE TABLE IF NOT EXISTS comprobantes (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        ip TEXT,
+        referencia TEXT,
+        telefono TEXT,
+        cuenta TEXT,
+        fecha TEXT
+    )
+""")
+
+conn.commit()
+
+# 💾 Guarda un comprobante con fecha
+def guardar_comprobante(ip: str, referencia: str, telefono: str, cuenta: str, fecha: str) -> None:
+    cursor.execute("""
+        INSERT INTO comprobantes (ip, referencia, telefono, cuenta, fecha)
+        VALUES (?, ?, ?, ?, ?)
+    """, (ip, referencia, telefono, cuenta, fecha))
+    conn.commit()
+
+# 🎟️ Inserta o actualiza un ticket de acceso
+def insertar_ticket(ip: str, metodo_pago: str = "desconocido") -> None:
+    ahora = datetime.utcnow()
+    expiracion = ahora + timedelta(hours=24)
+
+    cursor.execute("SELECT * FROM tickets WHERE ip = ?", (ip,))
+    resultado = cursor.fetchone()
+
+    if resultado:
+        cursor.execute("""
+            UPDATE tickets
+            SET metodo_pago = ?, hora_activacion = ?, expiracion = ?
+            WHERE ip = ?
+        """, (metodo_pago, ahora.isoformat(), expiracion.isoformat(), ip))
+    else:
+        cursor.execute("""
+            INSERT INTO tickets (ip, metodo_pago, hora_activacion, expiracion)
+            VALUES (?, ?, ?, ?)
+        """, (ip, metodo_pago, ahora.isoformat(), expiracion.isoformat()))
+
+    conn.commit()
