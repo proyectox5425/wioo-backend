@@ -24,7 +24,7 @@ def autenticar_usuario(usuario: str, clave: str) -> Dict:
 
         if resultado:
             rol = resultado[0]
-            token = crear_token(usuario, rol)
+            token = crear_token({"usuario": usuario, "rol": rol})
             return {
                 "autenticado": True,
                 "mensaje": "✅ Acceso concedido",
@@ -35,7 +35,7 @@ def autenticar_usuario(usuario: str, clave: str) -> Dict:
         else:
             return {
                 "autenticado": False,
-                "mensaje": "⛔ Usuario o clave incorrecta"
+                "mensaje": "🚫 Usuario o clave incorrecta"
             }
     except Exception as e:
         logger.error(f"Error al autenticar usuario {usuario}: {str(e)}")
@@ -43,4 +43,4 @@ def autenticar_usuario(usuario: str, clave: str) -> Dict:
             "autenticado": False,
             "mensaje": "❌ Error interno al autenticar",
             "error": str(e)
-          }
+        }
