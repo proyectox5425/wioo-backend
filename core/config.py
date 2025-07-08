@@ -11,6 +11,7 @@ else:
 class Settings(BaseSettings):
     DB_URL: str = Field(..., env="DB_URL")
     JWT_SECRET: str = Field(..., env="JWT_SECRET")
+    JWT_EXP_MINUTES: int = Field(60, env="JWT_EXP_MINUTES")
     HOST: str = Field("0.0.0.0", env="HOST")
     PORT: int = Field(8000, env="PORT")
     DEBUG: bool = Field(True, env="DEBUG")
