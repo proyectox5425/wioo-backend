@@ -1,33 +1,42 @@
-from typing import Dict
-import logging
-import ipaddress
+from datetime import datetime
+from utils.insertar_ip import insertar_ip
+from utils.logger import logger
+from fastapi.responses import JSONResponse
+import traceback
 
-logger = logging.getLogger(__name__)
-
-def procesar_ip(ip_raw: str) -> Dict:
-    """
-    Limpia y verifica si la IP es válida y pública.
-
-    Args:
-        ip_raw (str): IP cruda obtenida desde el request.
-
-    Returns:
-        dict: Resultado del análisis con tipo, estado y mensaje.
-    """
-    ip = ip_raw.strip()
+def registrar_ip(ip: str, usuario_id: int) -> JSONResponse:
+    fecha_actual = datetime.utcnow()
 
     try:
-        ip_obj = ipaddress.ip_address(ip)
+        ip_registrada = insertar_ip(
+            ip=ip,
+            fecha=fecha_actual,
+            usuario_id=usuario_id
+        )
 
-        if ip_obj.is_private:
-            tipo = "privada"
-            estado = False
-            mensaje = "⛔ IP privada detectada (no válida para activación)"
-        elif ip_obj.version != 4:
-            tipo = f"IPv{ip_obj.version}"
-            estado = False
-            mensaje = "⛔ Solo se acepta IPv4 pública"
-        else:
-            tipo = "pública"
-            estado = True
-            mensaje = "✅ IP
+        logger.info(
+            f"[{fecha_actual.isoformat()}] IP registrada → IP={ip} | UsuarioID={usuario_id}"
+        )
+
+        return JSONResponse(
+            status_code=200,
+            content={
+                "mensaje": "IP registrada correctamente.",
+                "ip": ip,
+                "usuario_id": usuario_id,
+                "registro": ip_registrada
+            }
+        )
+
+    except Exception as e:
+        logger.error(
+            f"[{fecha_actual.isoformat()}] Error al registrar IP={ip} | UsuarioID={usuario_id}\n{repr(e)}\n{traceback.format_exc()}"
+        )
+
+        return JSONResponse(
+            status_code=500,
+            content={
+                "error": "No se pudo registrar la IP.",
+                "detalle": str(e)
+            }
+        )
