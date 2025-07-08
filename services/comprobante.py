@@ -1,41 +1,41 @@
 from datetime import datetime
-from database import cursor, conn
-from typing import Dict
-import logging
+from utils.insertar_comprobante import insertar_comprobante
+from utils.logger import logger
+from fastapi.responses import JSONResponse
+import traceback
 
-logger = logging.getLogger(__name__)
+def crear_comprobante(ticket_id: int, usuario_id: int, estado: str = "pendiente") -> JSONResponse:
+    fecha_actual = datetime.utcnow()
 
-def guardar_comprobante(ip: str, referencia: str, telefono: str, cuenta: str) -> Dict:
-    """
-    Registra un comprobante bancario para la IP indicada.
-
-    Args:
-        ip (str): Dirección IP del usuario.
-        referencia (str): Número de referencia del pago.
-        telefono (str): Número telefónico vinculado al pago.
-        cuenta (str): Cuenta de destino del pago.
-
-    Returns:
-        dict: Estado de registro y mensaje.
-    """
     try:
-        fecha_actual = datetime.utcnow().isoformat()
-        cursor.execute("""
-            INSERT INTO comprobantes (ip, referencia, telefono, cuenta, fecha)
-            VALUES (?, ?, ?, ?, ?)
-        """, (ip, referencia.strip(), telefono.strip(), cuenta.strip(), fecha_actual))
-        conn.commit()
-        return {
-            "registrado": True,
-            "mensaje": "✅ Comprobante recibido correctamente",
-            "ip": ip,
-            "referencia": referencia,
-            "fecha": fecha_actual
-        }
+        comprobante = insertar_comprobante(
+            ticket_id=ticket_id,
+            usuario_id=usuario_id,
+            estado=estado,
+            fecha=fecha_actual
+        )
+
+        logger.info(
+            f"[{fecha_actual.isoformat()}] Comprobante creado → TicketID={ticket_id} | UsuarioID={usuario_id} | Estado={estado}"
+        )
+
+        return JSONResponse(
+            status_code=200,
+            content={
+                "mensaje": "Comprobante registrado correctamente.",
+                "comprobante": comprobante
+            }
+        )
+
     except Exception as e:
-        logger.error(f"Error al guardar comprobante para IP {ip}: {str(e)}")
-        return {
-            "registrado": False,
-            "mensaje": "❌ Error al registrar comprobante",
-            "error": str(e)
-      }
+        logger.error(
+            f"[{fecha_actual.isoformat()}] Error al crear comprobante → TicketID={ticket_id} | UsuarioID={usuario_id} | Estado={estado}\n{repr(e)}\n{traceback.format_exc()}"
+        )
+
+        return JSONResponse(
+            status_code=500,
+            content={
+                "error": "No se pudo registrar el comprobante.",
+                "detalle": str(e)
+            }
+        )
