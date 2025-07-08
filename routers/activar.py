@@ -1,43 +1,31 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from models.activar import Activar
 from schemas.activar_schema import ActivarCreate, ActivarOut
-from database import get_db
-from datetime import datetime
+from services.activar import activar_usuario
+from core.database import get_db
+from utils.token_utils import verificar_token_rol
 
 router = APIRouter()
 
-@router.post("/activar", response_model=ActivarOut)
-def activar_entidad(data: ActivarCreate, db: Session = Depends(get_db)):
-    # 🔐 Validación: evitar duplicados por usuario y fecha
-    existe = db.query(Activar).filter(
-        Activar.usuario_id == data.usuario_id,
-        Activar.fecha == data.fecha
-    ).first()
+@router.post("/activar", response_model=ActivarOut, tags=["Activar"])
+def activar_entidad(
+    data: ActivarCreate,
+    db: Session = Depends(get_db),
+    usuario: dict = Depends(verificar_token_rol)
+):
+    """
+    Activa el acceso de un usuario por duración configurada.
+    Protegido por token JWT (roles: admin, chofer).
+    """
+    rol = usuario["rol"]
+    usuario_token_id = usuario["usuario"]
 
-    if existe:
-        raise HTTPException(
-            status_code=400,
-            detail="Ya existe una activación registrada para ese usuario en esa fecha."
-        )
-
-    # 📅 Timestamp automático si no se envía
-    fecha_final = data.fecha or datetime.utcnow()
-
-    nueva_activacion = Activar(
-        activo=data.activo,
-        usuario_id=data.usuario_id,
-        fecha=fecha_final
-    )
+    # Restricción opcional: si no eres admin, solo puedes activar para ti
+    if rol != "admin" and data.usuario_id != usuario_token_id:
+        raise HTTPException(status_code=403, detail="🚫 No puedes activar para otro usuario")
 
     try:
-        db.add(nueva_activacion)
-        db.commit()
-        db.refresh(nueva_activacion)
-        return nueva_activacion
+        resultado = activar_usuario(data, db)
+        return resultado
     except Exception as e:
-        db.rollback()
-        raise HTTPException(
-            status_code=500,
-            detail=f"Error al registrar activación: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"❌ Error al activar: {str(e)}")
