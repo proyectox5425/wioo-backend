@@ -1,40 +1,60 @@
 from database import cursor
 from datetime import datetime
-from typing import Dict
+from typing import Dict, Any
 import logging
+import traceback
 
 logger = logging.getLogger(__name__)
 
-def validar_ip(ip: str) -> Dict:
+def validar_ip(ip: str) -> Dict[str, Any]:
     """
-    Valida si la IP tiene un ticket activo y no vencido.
+    Valida si una dirección IP tiene un ticket activo y no expirado.
 
     Args:
-        ip (str): Dirección IP del usuario.
+        ip (str): Dirección IP a validar.
 
     Returns:
-        dict: Resultado de la validación, incluyendo detalle de estado.
+        dict: Resultado con autorización y mensaje detallado.
     """
     try:
-        cursor.execute("SELECT hora_activacion, expiracion FROM tickets WHERE ip = ?", (ip,))
-        resultado = cursor.fetchone()
-
-        if not resultado:
-            return {"autorizado": False, "detalle": "⛔ No hay ticket para esta IP"}
-
-        hora_activacion, expiracion_str = resultado
-
-        if not hora_activacion or not expiracion_str:
-            return {"autorizado": False, "detalle": "⛔ Ticket incompleto (no activado)"}
-
-        expiracion = datetime.fromisoformat(expiracion_str)
         ahora = datetime.utcnow()
 
-        if ahora > expiracion:
-            return {"autorizado": False, "detalle": "⛔ Ticket vencido"}
+        cursor.execute("""
+            SELECT hora_activacion, expiracion
+            FROM tickets
+            WHERE ip = ?
+            ORDER BY hora_activacion DESC
+            LIMIT 1
+        """, (ip.strip(),))
+        resultado = cursor.fetchone()
 
-        return {"autorizado": True, "detalle": "✅ IP autorizada", "expira_en": expiracion.isoformat()}
+        if resultado:
+            hora_activacion, expiracion = resultado
+
+            if ahora > expiracion:
+                return {
+                    "autorizado": False,
+                    "detalle": "❌ Ticket vencido",
+                    "expiracion": expiracion.isoformat()
+                }
+
+            return {
+                "autorizado": True,
+                "detalle": "✅ Acceso válido",
+                "ip": ip,
+                "hora_activacion": hora_activacion.isoformat(),
+                "expiracion": expiracion.isoformat()
+            }
+        else:
+            return {
+                "autorizado": False,
+                "detalle": "🚫 No existe un ticket para esta IP"
+            }
 
     except Exception as e:
-        logger.error(f"Error al validar IP {ip}: {str(e)}")
-        return {"autorizado": False, "detalle": "❌ Error interno al validar", "error": str(e)}
+        logger.error(f"Error validando IP {ip}: {traceback.format_exc()}")
+        return {
+            "autorizado": False,
+            "detalle": "❌ Error interno al validar",
+            "error": str(e)
+            }
