@@ -1,12 +1,27 @@
-from pydantic import BaseModel, constr
-from typing import Literal
+from pydantic import BaseModel, EmailStr, constr
+from typing import Optional
 
-class UsuarioLoginRequest(BaseModel):
-    identificador: constr(strip_whitespace=True)
-    clave: constr(strip_whitespace=True)
 
-class UsuarioLoginResponse(BaseModel):
-    tipo: Literal["chofer", "admin"]
-    token_acceso: str
-    nombre: str
+class UsuarioBase(BaseModel):
+    correo: EmailStr  # ✅ Valida formato de correo automáticamente
+    rol: str
     activo: bool
+
+class UsuarioCreate(UsuarioBase):
+    contrasena: constr(min_length=6)  # ✅ Valida longitud mínima de contraseña
+
+class UsuarioOut(UsuarioBase):
+    id: int
+
+    class Config:
+        orm_mode = True  # ✅ Compatibilidad con modelos SQLAlchemy
+
+class UsuarioLogin(BaseModel):
+    correo: EmailStr
+    contrasena: str
+
+class UsuarioUpdate(BaseModel):
+    correo: Optional[EmailStr] = None
+    contrasena: Optional[constr(min_length=6)] = None
+    rol: Optional[str] = None
+    activo: Optional[bool] = None
