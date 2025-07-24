@@ -12,7 +12,7 @@ class Ticket(Base):
     usuario_id = Column(Integer, ForeignKey("usuarios.id"), index=True)  # ✅ Index para consultas rápidas
     fecha_creacion = Column(DateTime, default=datetime.utcnow)  # ✅ UTC para entornos distribuidos
     duracion = Column(Integer)
-
+    codigo_chofer = Column(String, index=True)
     usuario = relationship("Usuario", back_populates="tickets")
 
     def __repr__(self):
