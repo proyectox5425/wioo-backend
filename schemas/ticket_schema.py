@@ -11,6 +11,7 @@ class TicketResponse(BaseModel):
     creado_en: datetime
     expiracion: datetime
     estado: str  # "pendiente", "usado", "expirado"
+    codigo_chofer: str
 
 class ValidarTicketRequest(BaseModel):
     codigo: constr(strip_whitespace=True)
