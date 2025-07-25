@@ -62,3 +62,45 @@ def validar_codigo(
             status_code=500,
             detail="❌ Error interno al registrar validación"
 )
+
+from schemas.pago_manual import PagoManualIn
+from schemas.codigo_manual import CodigoManualIn
+from models.pago_manual import PagoManual
+from models.codigo_manual import CodigoChofer
+
+@router.post("/validar-pago", tags=["Validar"])
+def validar_pago(data: PagoManualIn, db: Session = Depends(get_db)):
+    """
+    Registra intento de validación por pago móvil (manual).
+    """
+    intento = PagoManual(
+        telefono=data.telefono,
+        banco=data.banco,
+        referencia=data.referencia,
+        monto=data.monto,
+        unidad=data.unidad,
+        metodo="pago_movil",
+        estado="pendiente",
+        fecha=datetime.utcnow()
+    )
+    db.add(intento)
+    db.commit()
+    db.refresh(intento)
+    return {"estado": "pendiente"}
+
+@router.post("/validar-codigo", tags=["Validar"])
+def validar_codigo_manual(data: CodigoManualIn, db: Session = Depends(get_db)):
+    """
+    Verifica si el código entregado por chofer está activo.
+    """
+    codigo = db.query(CodigoChofer).filter_by(
+        codigo=data.codigo, estado="activo"
+    ).first()
+
+    if not codigo:
+        raise HTTPException(status_code=400, detail="Código no válido o usado.")
+
+    # Marcar como usado
+    codigo.estado = "usado"
+    db.commit()
+    return {"estado": "aprobado", "duracion": codigo.duracion}
