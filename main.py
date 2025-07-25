@@ -9,6 +9,8 @@ from routers import (
     ticket,
     redireccionar,
     mi_ip
+from routers import pago_manual
+app.include_router(pago_manual.router)
 )
 
 app = FastAPI(
