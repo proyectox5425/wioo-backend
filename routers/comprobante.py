@@ -1,44 +1,49 @@
-from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
-from models.comprobante import Comprobante
-from schemas.comprobante_schema import ComprobanteCreate, ComprobanteOut
-from database import get_db
+from fastapi import APIRouter, HTTPException
+from pydantic import BaseModel
 from datetime import datetime
+from config.db_supabase import supabase_client  # tu cliente ya configurado
 
 router = APIRouter()
 
-@router.post("/comprobante", response_model=ComprobanteOut)
-def crear_comprobante(data: ComprobanteCreate, db: Session = Depends(get_db)):
-    # 🔐 Validación: evitar duplicados por ticket y usuario
-    existe = db.query(Comprobante).filter(
-        Comprobante.ticket_id == data.ticket_id,
-        Comprobante.usuario_id == data.usuario_id
-    ).first()
+class ComprobanteCreate(BaseModel):
+    telefono: str
+    banco: str
+    referencia: str
+    monto: float
+    unidad: str
+    metodo: str
+    ash_dispositivo: str
 
-    if existe:
-        raise HTTPException(
-            status_code=400,
-            detail="Ya existe un comprobante para ese ticket y usuario."
-        )
+@router.post("/api/cargar-comprobante")
+async def cargar_comprobante(datos: ComprobanteCreate):
+    # Validación básica visual
+    if len(datos.telefono) < 10:
+        raise HTTPException(status_code=400, detail="Teléfono inválido")
 
-    # 📅 Timestamp automático si no se envía
-    fecha_final = data.fecha or datetime.utcnow()
+    if not datos.referencia or datos.monto <= 0:
+        raise HTTPException(status_code=400, detail="Datos incompletos")
 
-    nuevo_comprobante = Comprobante(
-        estado=data.estado,
-        fecha=fecha_final,
-        usuario_id=data.usuario_id,
-        ticket_id=data.ticket_id
-    )
+    # Detección de duplicado por referencia
+    duplicado = supabase_client.table("pago_manual").select("id").eq("referencia", datos.referencia).execute()
+    if duplicado.data:
+        raise HTTPException(status_code=409, detail="Referencia ya registrada")
 
-    try:
-        db.add(nuevo_comprobante)
-        db.commit()
-        db.refresh(nuevo_comprobante)
-        return nuevo_comprobante
-    except Exception as e:
-        db.rollback()
-        raise HTTPException(
-            status_code=500,
-            detail=f"Error al registrar comprobante: {str(e)}"
-        )
+    # Registro limpio
+    nuevo = {
+        "telefono": datos.telefono,
+        "banco": datos.banco,
+        "referencia": datos.referencia,
+        "monto": datos.monto,
+        "unidad": datos.unidad,
+        "metodo": datos.metodo,
+        "estado": "pendiente",
+        "fecha_hora": datetime.utcnow().isoformat(),
+        "ash_dispositivo": datos.ash_dispositivo
+    }
+
+    resultado = supabase_client.table("pago_manual").insert(nuevo).execute()
+
+    if resultado.status_code != 201:
+        raise HTTPException(status_code=500, detail="Error al registrar comprobante")
+
+    return {"mensaje": "✅ Comprobante registrado correctamente"}
