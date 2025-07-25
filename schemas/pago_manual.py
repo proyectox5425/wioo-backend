@@ -7,6 +7,10 @@ class PagoManualIn(BaseModel):
     referencia: str
     monto: float
     unidad: str
+    metodo: str
+    estado: str
+    hash_dispositivo: str
+    fecha_hora: datetime
 
 class PagoManualOut(BaseModel):
     estado: str
