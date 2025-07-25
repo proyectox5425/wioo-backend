@@ -12,4 +12,5 @@ class PagoManual(Base):
     unidad = Column(String)
     metodo = Column(String)
     estado = Column(String, default="pendiente")
-    fecha = Column(DateTime, default=datetime.utcnow)
+    fecha_hora = Column(DateTime, default=datetime.utcnow)
+    hash_dispositivo = Columna(Cadena)
