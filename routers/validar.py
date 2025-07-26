@@ -8,6 +8,12 @@ from datetime import datetime
 import traceback
 import logging
 
+from schemas.pago_manual import PagoManualIn
+from schemas.codigo_manual import CodigoManualIn
+from models.pago_manual import PagoManual
+from models.codigo_manual import CodigoChofer
+from models.ticket import Ticket  # Nuevo registro para trazabilidad
+
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
@@ -19,13 +25,11 @@ def validar_codigo(
 ):
     """
     Registra la validación de un código para un usuario en una fecha específica.
-    Evita duplicados por código/usuario/fecha.
-    Protegido por JWT (admin o chofer).
+    Protegido por JWT (admin o chofer). Evita duplicados por código/usuario/fecha.
     """
     rol = usuario["rol"]
     usuario_id_token = usuario["usuario"]
 
-    # (Opcional) Solo permitir que validen su propio código si no son admin
     if rol != "admin" and data.usuario_id != usuario_id_token:
         raise HTTPException(status_code=403, detail="🚫 No puedes validar código para otro usuario.")
 
@@ -36,10 +40,7 @@ def validar_codigo(
     ).first()
 
     if existe:
-        raise HTTPException(
-            status_code=400,
-            detail="Ya se validó ese código para ese usuario en esa fecha."
-        )
+        raise HTTPException(status_code=400, detail="Ya se validó ese código para ese usuario en esa fecha.")
 
     fecha_final = data.fecha or datetime.utcnow()
 
@@ -53,25 +54,31 @@ def validar_codigo(
         db.add(nuevo_validar)
         db.commit()
         db.refresh(nuevo_validar)
+
+        # Registrar ticket institucional para trazabilidad
+        ticket = Ticket(
+            usuario_id=data.usuario_id,
+            codigo=data.codigo,
+            metodo="codigo_usuario",
+            estado="validado",
+            fecha=datetime.utcnow()
+        )
+        db.add(ticket)
+        db.commit()
+
         return nuevo_validar
 
     except Exception as e:
         db.rollback()
         logger.error(f"Error al registrar código: {traceback.format_exc()}")
-        raise HTTPException(
-            status_code=500,
-            detail="❌ Error interno al registrar validación"
-)
+        raise HTTPException(status_code=500, detail="❌ Error interno al registrar validación")
 
-from schemas.pago_manual import PagoManualIn
-from schemas.codigo_manual import CodigoManualIn
-from models.pago_manual import PagoManual
-from models.codigo_manual import CodigoChofer
 
 @router.post("/validar-pago", tags=["Validar"])
 def validar_pago(data: PagoManualIn, db: Session = Depends(get_db)):
     """
     Registra intento de validación por pago móvil (manual).
+    Crea un ticket institucional en estado pendiente.
     """
     intento = PagoManual(
         telefono=data.telefono,
@@ -84,14 +91,27 @@ def validar_pago(data: PagoManualIn, db: Session = Depends(get_db)):
         fecha=datetime.utcnow()
     )
     db.add(intento)
+
+    # Registro institucional del ticket para trazabilidad
+    ticket = Ticket(
+        usuario_id=None,
+        codigo=data.referencia,
+        metodo="pago_movil",
+        estado="pendiente",
+        fecha=datetime.utcnow()
+    )
+    db.add(ticket)
+
     db.commit()
     db.refresh(intento)
     return {"estado": "pendiente"}
+
 
 @router.post("/validar-codigo", tags=["Validar"])
 def validar_codigo_manual(data: CodigoManualIn, db: Session = Depends(get_db)):
     """
     Verifica si el código entregado por chofer está activo.
+    Devuelve info clave para frontend, registra ticket institucional.
     """
     codigo = db.query(CodigoChofer).filter_by(
         codigo=data.codigo, estado="activo"
@@ -103,4 +123,25 @@ def validar_codigo_manual(data: CodigoManualIn, db: Session = Depends(get_db)):
     # Marcar como usado
     codigo.estado = "usado"
     db.commit()
-    return {"estado": "aprobado", "duracion": codigo.duracion}
+
+    # Registrar ticket institucional
+    ticket = Ticket(
+        usuario_id=None,
+        codigo=data.codigo,
+        metodo="codigo_chofer",
+        estado="aprobado",
+        fecha=datetime.utcnow(),
+        unidad=codigo.unidad,
+        chofer=codigo.chofer_id
+    )
+    db.add(ticket)
+    db.commit()
+
+    # Retorno completo para frontend
+    return {
+        "estado": "aprobado",
+        "duracion": codigo.duracion,
+        "chofer": codigo.chofer_id,
+        "unidad": codigo.unidad,
+        "compania": codigo.compania
+    }
