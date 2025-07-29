@@ -51,7 +51,7 @@ SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJ
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 def validar_codigo_supabase(codigo):
-    respuesta = supabase.from("códigos_activos").select("*").eq("codigo", codigo).execute()
+    respuesta = supabase.from("codigos_activos").select("*").eq("código", codigo).execute()
 
     if respuesta.data:
         registro = respuesta.data[0]
