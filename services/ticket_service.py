@@ -42,3 +42,25 @@ def generar_ticket(ip: str, metodo_pago: str = "efectivo") -> Dict:
             "mensaje": "❌ No se pudo generar el ticket",
             "error": str(e)
         }
+
+     from supabase import create_client
+
+SUPABASE_URL = "https://sjrmzkomzlqpsfvjdnle.supabase.co"
+SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNqcm16a29temxxcHNmdmpkbmxlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTI4MDU0NTMsImV4cCI6MjA2ODM4MTQ1M30.lX1F-w3ar2LEunf6OTfHoWkDOGFn4KdFTxEuCm34Wmw"
+
+supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
+
+def validar_codigo_supabase(codigo):
+    respuesta = supabase.from("códigos_activos").select("*").eq("codigo", codigo).execute()
+
+    if respuesta.data:
+        registro = respuesta.data[0]
+        return {
+            "estado": "aprobado",
+            "unidad": registro.get("unidad", ""),
+            "chofer": registro.get("chofer", ""),
+            "compania": registro.get("compania", "")
+        }
+    else:
+        return {"estado": "rechazado"}
+
