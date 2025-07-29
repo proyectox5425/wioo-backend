@@ -1,3 +1,4 @@
+from services.ticket_service import validar_codigo_supabase
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from models.validar import Validar
@@ -108,21 +109,15 @@ def validar_pago(data: PagoManualIn, db: Session = Depends(get_db)):
 
 
 @router.post("/validar-codigo", tags=["Validar"])
-def validar_codigo_manual(data: CodigoManualIn, db: Session = Depends(get_db)):
+def validar_codigo_supabase_manual(data: CodigoManualIn):
     """
-    Verifica si el código entregado por chofer está activo.
-    Devuelve info clave para frontend, registra ticket institucional.
+    Verifica si el código entregado por el chofer existe en Supabase.
+    Devuelve trazabilidad completa y estado para frontend.
     """
-    codigo = db.query(CodigoChofer).filter_by(
-        codigo=data.codigo, estado="activo"
-    ).first()
+    resultado = validar_codigo_supabase(data.codigo)
 
-    if not codigo:
-        raise HTTPException(status_code=400, detail="Código no válido o usado.")
-
-    # Marcar como usado
-    codigo.estado = "usado"
-    db.commit()
+    if resultado["estado"] != "aprobado":
+        raise HTTPException(status_code=400, detail="Código no válido o rechazado.")
 
     # Registrar ticket institucional
     ticket = Ticket(
@@ -131,11 +126,14 @@ def validar_codigo_manual(data: CodigoManualIn, db: Session = Depends(get_db)):
         metodo="codigo_chofer",
         estado="aprobado",
         fecha=datetime.utcnow(),
-        unidad=codigo.unidad,
-        chofer=codigo.chofer_id
+        unidad=resultado["unidad"],
+        chofer=resultado["chofer"]
     )
+    db = get_db()()  # ← abrir manualmente la sesión porque no usamos Depends
     db.add(ticket)
     db.commit()
+
+    return resultado
 
     # Retorno completo para frontend
     return {
