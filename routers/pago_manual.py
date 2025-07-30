@@ -3,7 +3,7 @@ from datetime import datetime
 from database import db
 from modelos.pago_manual import PagoManualIn
 from modelos.ticket import Ticket
-from funciones.registrar_pago_manual import registrar_pago_manual
+from services.pago_manual import registrar_pago_manual
 
 router = APIRouter()
 
