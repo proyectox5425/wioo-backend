@@ -11,6 +11,8 @@ class PagoManualIn(BaseModel):
     estado: str
     hash_dispositivo: str
     fecha_hora: datetime
+    cedula: str         # ✅ Nueva: enviada desde pantalla 3.1
+    tiempo: str         # ✅ Nueva: enviada desde pantalla 3.1
 
 class PagoManualOut(BaseModel):
     estado: str
