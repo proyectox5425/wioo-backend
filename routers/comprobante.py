@@ -12,7 +12,7 @@ class ComprobanteCreate(BaseModel):
     monto: float
     unidad: str
     metodo: str
-    ash_dispositivo: str
+    hash_dispositivo: str
 
 @router.post("/api/cargar-comprobante")
 async def cargar_comprobante(datos: ComprobanteCreate):
@@ -38,7 +38,7 @@ async def cargar_comprobante(datos: ComprobanteCreate):
         "metodo": datos.metodo,
         "estado": "pendiente",
         "fecha_hora": datetime.utcnow().isoformat(),
-        "ash_dispositivo": datos.ash_dispositivo
+        "hash_dispositivo": datos.hash_dispositivo
     }
 
     resultado = supabase_client.table("pago_manual").insert(nuevo).execute()
