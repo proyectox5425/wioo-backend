@@ -135,11 +135,3 @@ def validar_codigo_supabase_manual(data: CodigoManualIn):
 
     return resultado
 
-    # Retorno completo para frontend
-    return {
-        "estado": "aprobado",
-        "duracion": codigo.duracion,
-        "chofer": codigo.chofer_id,
-        "unidad": codigo.unidad,
-        "compania": codigo.compania
-    }
