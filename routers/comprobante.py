@@ -46,4 +46,7 @@ async def cargar_comprobante(datos: ComprobanteCreate):
     if resultado.status_code != 201:
         raise HTTPException(status_code=500, detail="Error al registrar comprobante")
 
-    return {"mensaje": "✅ Comprobante registrado correctamente"}
+    return {
+    "estado": "pendiente",
+    "mensaje": "✅ Comprobante registrado correctamente. Esperando validación."
+    }
