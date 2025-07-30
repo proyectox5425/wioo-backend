@@ -51,16 +51,14 @@ SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJ
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 def validar_codigo_supabase(codigo):
-  # 🧽 Limpieza quirúrgica: elimina prefijo y espacios
-codigo_limpio = codigo.strip().replace("CH-", "").replace("ch-", "").replace("Ch-", "").strip()
+    # ✅ Limpiar y reconstruir el formato original que guarda Supabase
+    codigo_num = codigo.strip()
+    codigo_formato = f"CH-{codigo_num}"
 
-# 💬 Consola para verificar entrada y salida
-print("🔢 Código ingresado:", codigo)
-print("🎯 Código procesado:", codigo_limpio)
+    print("🎯 Código reconstruido:", codigo_formato)
 
-# 🔍 Búsqueda en Supabase solo con los 4 dígitos
-respuesta = supabase.from("codigos_activos").select("*").eq("código", codigo_limpio).execute()
-print("📡 Resultado Supabase:", respuesta.data)
+    respuesta = supabase.from("codigos_activos").select("*").eq("codigo", codigo_formato).execute()
+
     if respuesta.data:
         registro = respuesta.data[0]
         return {
